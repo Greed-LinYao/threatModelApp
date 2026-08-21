@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>威胁建模工作台</title>
+<style>
+:root{--bg:#f3f5f8;--panel:#fff;--border:#e2e5ea;--text:#1f2430;--muted:#6b7280;--accent:#1a56db;--accent-soft:#e8effc;--danger:#b91c1c;--ok:#047857}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+header{background:#101828;color:#fff;padding:12px 20px;display:flex;align-items:center;gap:14px}
+header h1{font-size:17px;font-weight:600}
+header .sub{font-size:12px;color:#9aa4b2}
+header .actions{margin-left:auto;display:flex;gap:8px}
+.btn{border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer}
+.btn:hover{opacity:.9}
+.btn.ghost{background:#fff;color:var(--accent)}
+.btn.danger{background:#fff;border-color:var(--danger);color:var(--danger)}
+.btn.sm{padding:3px 10px;font-size:12px;border-radius:6px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.layout{display:flex;height:calc(100vh - 53px)}
+/* 左侧：项目/页面树 */
+.sidebar{width:290px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;flex:none}
+.sidebar .head{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:10px}
+.sidebar .head .row{display:flex;align-items:center;gap:6px}
+.sidebar .head .row b{font-size:13px}
+.sidebar .head select{flex:1;min-width:0;border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;background:#fff}
+.tree{flex:1;overflow:auto;padding:8px 10px}
+.page-item{border:1px solid transparent;border-radius:8px;margin:2px 0 2px 6px;padding:7px 10px;cursor:pointer;display:flex;align-items:center;gap:6px;background:#fafbfc}
+.page-item:hover{background:var(--accent-soft)}
+.page-item.active{background:var(--accent-soft);border-color:var(--accent)}
+.page-item .p-name{flex:1;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.page-item .tag{font-size:11px;color:var(--muted);white-space:nowrap}
+.page-item .p-ops{display:none;gap:4px}
+.page-item:hover .p-ops{display:flex}
+.empty-tip{color:var(--muted);font-size:13px;padding:20px 10px;text-align:center}
+/* 主区 */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.toolbar{background:var(--panel);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.toolbar .title{font-size:15px;font-weight:600}
+.toolbar .meta{font-size:12px;color:var(--muted)}
+.view-tabs{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;flex:none}
+.view-tabs .tab{border:none;background:#fff;padding:5px 14px;font-size:13px;cursor:pointer;color:var(--muted)}
+.view-tabs .tab.active{background:var(--accent);color:#fff}
+.content{flex:1;overflow:auto;padding:16px 20px}
+.func-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+.func-card .fc-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.func-card .fc-head .fname{font-size:15px;font-weight:600}
+.badge{font-size:11px;padding:1px 8px;border-radius:999px;border:1px solid transparent;white-space:nowrap}
+.badge.count{background:var(--accent-soft);color:var(--accent)}
+.badge.sev.High{background:#b91c1c;color:#fff}.badge.sev.Medium{background:#b45309;color:#fff}.badge.sev.Low{background:#047857;color:#fff}
+.fc-ops{margin-left:auto;display:flex;gap:6px}
+.func-card .note{font-size:12px;color:var(--muted);margin-top:4px}
+.fc-section{margin-top:10px;font-size:13px}
+.fc-section .k{font-weight:600;color:var(--muted);font-size:12px;margin-bottom:4px}
+.threat-list{display:flex;flex-direction:column;gap:6px}
+.threat-item{border:1px solid var(--border);border-radius:8px;padding:7px 10px;background:#fafbfc}
+.threat-item .t-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.threat-item .t-title{font-size:13px;font-weight:600}
+.threat-item .t-ref{font-size:11px;color:var(--muted)}
+.threat-item .t-remove{margin-left:auto;background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px}
+.threat-item .t-detail{font-size:12px;color:var(--muted);margin-top:4px;display:none}
+.threat-item.open .t-detail{display:block}
+.rel-list{display:flex;flex-wrap:wrap;gap:6px}
+.flow-list{display:flex;flex-direction:column;gap:8px}
+.flow-panel{border:1px solid var(--border);border-radius:8px;background:#fafbfc;padding:8px 12px}
+.flow-panel.ext{border-color:#c4b5fd;background:#faf9ff}
+.flow-panel .fp-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.flow-panel .fp-arrow{font-size:12px;font-weight:600;color:#047857;white-space:nowrap}
+.flow-panel .fp-label{font-size:13px}
+.flow-panel .fp-ops{margin-left:auto;display:flex;gap:6px}
+.flow-panel .fp-threats{margin-top:8px;border-top:1px dashed var(--border);padding-top:8px;display:flex;flex-direction:column;gap:6px}
+.proj-risk-card .fname{color:#b45309}
+.rel-chip{font-size:12px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:2px 10px;display:inline-flex;align-items:center;gap:6px}
+.rel-chip.data{background:#ecfdf5;color:#047857}
+.rel-chip.ext{background:#f5f3ff;color:#6d28d9}
+.rel-chip .x{cursor:pointer;font-weight:700}
+.rel-chip .x:hover{color:var(--danger)}
+/* 关系图 */
+.graph-legend{font-size:12px;color:var(--muted);margin-bottom:12px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.graph-legend .k{display:inline-flex;align-items:center;gap:4px}
+.lg-line{display:inline-block;width:26px;height:0;border-top:2px solid var(--accent)}
+.lg-dash{display:inline-block;width:26px;height:0;border-top:2px dashed #94a3b8}
+#contentGraph svg{display:block}
+.gp-head{font-size:13px;font-weight:600;fill:#374151}
+.gp-sub{font-size:11px;fill:#9aa4b2}
+.gfbox{fill:#fff;stroke:#94a8cc;stroke-width:1.3}
+.gfbox.ext{stroke:#c4b5fd;stroke-dasharray:5 3;fill:#faf9ff}
+.gfname{font-size:13px;font-weight:600;fill:#1f2430}
+.gfmeta{font-size:11px;fill:#6b7280}
+.gedge{fill:none;stroke:#1a56db;stroke-width:1.6}
+.gedge.rel{stroke:#94a3b8;stroke-dasharray:6 4}
+.glabel{font-size:10.5px;fill:#1a56db}
+.glabel.rel{fill:#6b7280}
+.fnode:hover .gfbox{stroke:var(--accent);stroke-width:2}
+/* 弹层 */
+.modal-mask{position:fixed;inset:0;background:rgba(16,24,40,.45);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:40px 16px;overflow:auto}
+.modal-mask.show{display:flex}
+.modal{background:#fff;border-radius:12px;width:640px;max-width:100%;padding:20px 22px;box-shadow:0 12px 40px rgba(16,24,40,.25)}
+.modal h3{font-size:16px;margin-bottom:14px}
+.modal .form-row{margin-bottom:12px}
+.modal label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.modal input[type=text],.modal textarea,.modal select{width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;background:#fff}
+.modal textarea{min-height:60px;resize:vertical}
+.modal .footer{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.hint{font-size:12px;color:var(--muted)}
+/* 威胁选择弹层 */
+.threat-modal{width:860px}
+.tm-filters{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.tm-filters select,.tm-filters input{border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px;background:#fff}
+.tm-list{max-height:420px;overflow:auto;border:1px solid var(--border);border-radius:8px}
+.tm-row{padding:8px 12px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.tm-row:hover{background:var(--accent-soft)}
+.tm-row.picked{background:#ecfdf5}
+.tm-row input{margin-top:3px}
+.tm-row .t-name{font-size:13px;font-weight:600}
+.tm-row .t-tags{font-size:11px;color:var(--muted);margin-top:2px}
+.tm-row .t-desc{font-size:12px;color:var(--muted);margin-top:2px}
+.save-state{font-size:12px;color:var(--muted)}
+.save-state.saved{color:var(--ok)}
+footer.statusbar{background:var(--panel);border-top:1px solid var(--border);padding:6px 16px;font-size:12px;color:var(--muted);display:flex;gap:16px}
+</style>
+</head>
+<body>
+<header>
+  <h1>威胁建模工作台</h1>
+  <span class="sub">多项目 / 页面 / 功能 / 威胁 / 数据流与上下游</span>
+  <div class="actions">
+    <button class="btn ghost sm" id="btnNewProject">新建项目</button>
+    <button class="btn ghost sm" id="btnLoadDemo">示例项目</button>
+    <button class="btn ghost sm" id="btnImport">导入 JSON</button>
+    <button class="btn sm" id="btnSaveNow">立即保存</button>
+    <button class="btn sm" id="btnExportJson">导出项目</button>
+    <button class="btn sm" id="btnExportAll">导出全部</button>
+    <button class="btn sm" id="btnExportKm">导出脑图 .km</button>
+    <input type="file" id="fileInput" accept=".json" style="display:none">
+  </div>
+</header>
+<div class="layout">
+  <div class="sidebar">
+    <div class="head">
+      <div class="row">
+        <select id="projSelect" title="切换项目"></select>
+        <button class="btn sm ghost" id="btnRenameProj" title="项目改名">改名</button>
+        <button class="btn sm danger" id="btnDelProj" title="删除当前项目">删</button>
+      </div>
+      <div class="row">
+        <b>页面结构</b>
+        <button class="btn sm ghost" id="btnAddPage" style="margin-left:auto">+ 页面</button>
+      </div>
+    </div>
+    <div class="tree" id="tree"></div>
+  </div>
+  <div class="main">
+    <div class="toolbar">
+      <div class="view-tabs">
+        <button class="tab active" id="tabDetail">页面详情</button>
+        <button class="tab" id="tabGraph">关系图</button>
+      </div>
+      <span class="title" id="pageTitle">未选择页面</span>
+      <span class="meta" id="pageMeta"></span>
+      <span class="meta" style="margin-left:auto"><span class="save-state" id="saveState">未保存</span></span>
+    </div>
+    <div class="content" id="content">
+      <div id="contentDetail"></div>
+      <div id="contentGraph" style="display:none"></div>
+    </div>
+  </div>
+</div>
+<footer class="statusbar">
+  <span id="statProject">未创建项目</span>
+  <span id="statCounts"></span>
+  <span style="margin-left:auto">数据自动保存于浏览器 localStorage，支持多项目并存与跨项目数据流/上下游</span>
+</footer>
+
+<!-- 通用输入弹层 -->
+<div class="modal-mask" id="textModal">
+  <div class="modal">
+    <h3 id="tmTitle">输入</h3>
+    <div class="form-row"><label id="tmLabel">名称</label><input type="text" id="tmInput"></div>
+    <div class="form-row" id="tmNoteRow" style="display:none"><label>备注（可选）</label><textarea id="tmNote"></textarea></div>
+    <div class="footer">
+      <button class="btn ghost" id="tmCancel">取消</button>
+      <button class="btn" id="tmOk">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 功能编辑弹层 -->
+<div class="modal-mask" id="funcModal">
+  <div class="modal">
+    <h3 id="fmTitle">新建功能</h3>
+    <div class="form-row"><label>功能名称</label><input type="text" id="fmName" placeholder="如：账号密码登录"></div>
+    <div class="form-row"><label>备注（可选）</label><textarea id="fmNote" placeholder="功能说明、入口接口、负责人等"></textarea></div>
+    <div class="footer">
+      <button class="btn ghost" id="fmCancel">取消</button>
+      <button class="btn" id="fmOk">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 关系编辑弹层 -->
+<div class="modal-mask" id="relModal">
+  <div class="modal">
+    <h3 id="rmTitle">添加关系</h3>
+    <div class="form-row"><label id="rmLabel1">方向</label>
+      <select id="rmDir"><option value="downstream">下游（本功能 -> 目标）</option><option value="upstream">上游（目标 -> 本功能）</option></select>
+    </div>
+    <div class="form-row"><label id="rmLabel2">目标功能（可跨项目）</label><select id="rmTarget"></select></div>
+    <div class="form-row" id="rmDataExtra" style="display:none">
+      <label>数据内容（如：用户凭证 / 订单明细，可选）</label><input type="text" id="rmDataDesc">
+      <div class="form-row" style="margin-top:8px"><label>协议（如 HTTPS / SQL / MQ，可选）</label><input type="text" id="rmProtocol"></div>
+    </div>
+    <div class="footer">
+      <button class="btn ghost" id="rmCancel">取消</button>
+      <button class="btn" id="rmOk">添加</button>
+    </div>
+  </div>
+</div>
+
+<!-- 威胁选择弹层 -->
+<div class="modal-mask" id="threatModal">
+  <div class="modal threat-modal">
+    <h3>选择威胁项 <span class="hint" id="tmFuncName"></span></h3>
+    <div class="tm-filters">
+      <select id="tFilterCat">
+        <option value="">全部类别</option>
+        <option value="actor">外部实体 Actor</option>
+        <option value="process">过程 Process</option>
+        <option value="store">数据存储 Store</option>
+        <option value="flow">数据流 Flow</option>
+        <option value="boundary">信任边界</option>
+        <option value="global">全局通用</option>
+      </select>
+      <select id="tFilterStride">
+        <option value="">全部 STRIDE</option>
+        <option value="Spoofing">S 仿冒</option>
+        <option value="Tampering">T 篡改</option>
+        <option value="Repudiation">R 抵赖</option>
+        <option value="InformationDisclosure">I 信息泄露</option>
+        <option value="DenialOfService">D 拒绝服务</option>
+        <option value="ElevationOfPrivilege">E 权限提升</option>
+      </select>
+      <select id="tFilterSev"><option value="">全部严重度</option><option>High</option><option>Medium</option><option>Low</option></select>
+      <input type="text" id="tFilterQ" placeholder="搜索编号/名称/关键词">
+    </div>
+    <div class="tm-list" id="tmList"></div>
+    <div class="footer">
+      <span class="hint" id="tmPickedCount" style="margin-right:auto"></span>
+      <button class="btn ghost" id="tmClose">取消</button>
+      <button class="btn" id="tmConfirm">确认勾选</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/threats.js?v=3"></script>
+<script src="js/app.js?v=3"></script>
+</body>
+</html>
